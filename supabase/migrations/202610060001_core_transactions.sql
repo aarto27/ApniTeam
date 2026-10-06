@@ -18,6 +18,7 @@ declare
   v_team_id uuid;
   v_sport text;
   v_unique_count integer;
+  v_max_from_team integer;
 begin
   if v_user is null then raise exception 'not_authenticated'; end if;
   if coalesce(trim(p_team_name), '') = '' then raise exception 'team_name_required'; end if;
