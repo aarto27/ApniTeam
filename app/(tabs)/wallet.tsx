@@ -1,4 +1,5 @@
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { Link } from "expo-router";
 import { useWallet } from "../../features/wallet/useWallet";
 import { formatCurrency } from "../../lib/format";
 import { theme } from "../../lib/theme";
@@ -24,6 +25,10 @@ export default function Wallet() {
         <View style={styles.item}><Text style={styles.label}>Bonus</Text><Text style={styles.value}>{formatCurrency(data?.bonus ?? 0)}</Text></View>
       </View>
 
+      <Link href="/withdraw" asChild>
+        <Pressable style={styles.withdraw}><Text style={styles.withdrawText}>Withdraw funds</Text></Pressable>
+      </Link>
+
       <Text style={styles.note}>Payments and withdrawals are server-authoritative. The app never changes wallet balances directly.</Text>
     </View>
   );
@@ -41,5 +46,7 @@ const styles = StyleSheet.create({
   label: { color: theme.colors.muted, fontSize: 10, fontWeight: "700" },
   value: { color: theme.colors.text, fontSize: 14, fontWeight: "900", marginTop: 5 },
   error: { marginTop: 12, color: theme.colors.primary, fontWeight: "700" },
+  withdraw: { marginTop: 18, backgroundColor: "#fff", borderWidth: 1, borderColor: theme.colors.border, borderRadius: 12, padding: 14, alignItems: "center" },
+  withdrawText: { color: theme.colors.primary, fontWeight: "900" },
   note: { marginTop: 20, color: theme.colors.muted, fontSize: 12, lineHeight: 18 },
 });
