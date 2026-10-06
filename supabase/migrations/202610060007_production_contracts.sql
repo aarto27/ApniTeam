@@ -286,3 +286,39 @@ create policy withdrawals_admin_read on public.withdrawal_requests
 drop policy if exists admin_audit_admin_read on public.admin_audit_log;
 create policy admin_audit_admin_read on public.admin_audit_log
   for select to authenticated using (public.is_admin());
+
+
+create or replace function public.sync_match_snapshot(
+  p_match_id uuid,
+  p_provider_status text,
+  p_toss text,
+  p_lineup_announced boolean,
+  p_provider_effective_start timestamptz
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.matches
+  set provider_status = p_provider_status,
+      toss = coalesce(p_toss, toss),
+      lineup_announced = coalesce(p_lineup_announced, lineup_announced),
+      effective_starts_at = greatest(
+        starts_at,
+        coalesce(p_provider_effective_start, effective_starts_at)
+      ),
+      status = case
+        when p_provider_status in ('completed','cancelled') then p_provider_status
+        when now() >= greatest(starts_at, coalesce(p_provider_effective_start, effective_starts_at))
+             and p_provider_status = 'live' then 'live'
+        else 'scheduled'
+      end,
+      updated_at = now()
+  where id = p_match_id;
+end;
+$$;
+
+revoke all on function public.sync_match_snapshot(uuid,text,text,boolean,timestamptz) from public;
+grant execute on function public.sync_match_snapshot(uuid,text,text,boolean,timestamptz) to service_role;
