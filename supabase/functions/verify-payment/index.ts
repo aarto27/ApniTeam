@@ -43,7 +43,7 @@ serve(async (request) => {
   if (!orderResponse.ok) return new Response("Unable to verify payment order", { status: 502 });
   const order = await orderResponse.json();
   const verifiedAmount = Number(order.amount) / 100;
-  if (order.status !== "paid" && Number.isFinite(order.amount) && verifiedAmount !== amount) {
+  if (!Number.isFinite(order.amount) || verifiedAmount !== amount) {
     return new Response("Payment amount mismatch", { status: 400 });
   }
   if (order.notes?.user_id && order.notes.user_id !== user.id) {
