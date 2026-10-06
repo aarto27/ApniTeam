@@ -130,5 +130,6 @@ $$;
 
 revoke all on function public.record_live_player_score(text,uuid,text,numeric,timestamptz) from public;
 revoke all on function public.recalculate_match_contest_points(uuid) from public;
+grant execute on function public.record_live_player_score(text,uuid,text,numeric,timestamptz) to service_role;
 
 -- Feed workers use a server-side credential. Clients must never write scoring events.
