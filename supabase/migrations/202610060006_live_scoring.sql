@@ -12,6 +12,7 @@ create table if not exists public.match_player_scores (
   match_id uuid not null references public.matches(id) on delete cascade,
   player_id text not null,
   points numeric(14,3) not null default 0,
+  last_event_at timestamptz,
   updated_at timestamptz not null default now(),
   primary key (match_id, player_id)
 );
@@ -114,10 +115,13 @@ begin
   end if;
 
   insert into public.match_player_scores(match_id, player_id, points, updated_at)
-  values (p_match_id, p_player_id, p_points, now())
+  values (p_match_id, p_player_id, p_points, p_occurred_at, now())
   on conflict (match_id, player_id) do update
     set points = excluded.points,
-        updated_at = now();
+        last_event_at = excluded.last_event_at,
+        updated_at = now()
+  where public.match_player_scores.last_event_at is null
+     or excluded.last_event_at >= public.match_player_scores.last_event_at;
 
   perform public.recalculate_match_contest_points(p_match_id);
   return true;
