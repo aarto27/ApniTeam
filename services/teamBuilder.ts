@@ -14,16 +14,26 @@ export async function getMatchPlayers(matchId: string) {
 
 export async function saveTeam(input: {
   matchId: string;
+  teamId?: string;
   teamName: string;
   draft: TeamDraft;
 }) {
-  const { data, error } = await supabase.rpc("save_fantasy_team", {
-    p_match_id: input.matchId,
+  const payload = {
     p_team_name: input.teamName.trim(),
     p_player_ids: input.draft.players.map((player) => player.id),
     p_captain_id: input.draft.captainId,
     p_vice_captain_id: input.draft.viceCaptainId,
-  });
+  };
+
+  const { data, error } = input.teamId
+    ? await supabase.rpc("update_fantasy_team", {
+        p_team_id: input.teamId,
+        ...payload,
+      })
+    : await supabase.rpc("save_fantasy_team", {
+        p_match_id: input.matchId,
+        ...payload,
+      });
 
   if (error) throw error;
   return data;

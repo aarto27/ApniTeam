@@ -2,6 +2,7 @@ import { Link, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { useMatch } from "../../features/matches/useMatches";
+import { useMyTeams } from "../../features/teams/useMyTeams";
 import { theme } from "../../lib/theme";
 
 const countdown = (value: string | null) => {
@@ -16,7 +17,9 @@ const countdown = (value: string | null) => {
 
 export default function Match() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { data: match, isLoading, isError } = useMatch(String(id ?? ""));
+  const matchId = String(id ?? "");
+  const { data: match, isLoading, isError } = useMatch(matchId);
+  const { data: myTeams = [] } = useMyTeams(matchId);
   const [clock, setClock] = useState(() => countdown(match?.effectiveStartsAt ?? match?.startsAt ?? null));
 
   useEffect(() => {
@@ -66,7 +69,16 @@ export default function Match() {
       </View>
 
       <Link href={{ pathname: "/contest/[matchId]", params: { matchId: match.id } }} style={s.button}>View Contests</Link>
-      <Link href={{ pathname: "/team/[matchId]", params: { matchId: match.id } }} style={s.secondary}>Create Team</Link>
+      {match.status === "upcoming" && (
+        <>
+          <Link href={{ pathname: "/team/[matchId]", params: { matchId: match.id } }} style={s.secondary}>Create Team</Link>
+          {myTeams.map((team) => (
+            <Link key={team.id} href={{ pathname: "/team/[matchId]", params: { matchId: match.id, teamId: team.id } }} style={s.teamLink}>
+              Edit {team.name}
+            </Link>
+          ))}
+        </>
+      )}
     </View>
   );
 }
@@ -89,4 +101,5 @@ const s = StyleSheet.create({
   lineup: { marginTop: 10, color: theme.colors.success, fontWeight: "800" },
   button: { marginTop: 16, backgroundColor: theme.colors.primary, color: "#fff", padding: 16, borderRadius: 14, textAlign: "center", fontWeight: "900" },
   secondary: { marginTop: 10, backgroundColor: "#fff", color: theme.colors.text, padding: 16, borderRadius: 14, textAlign: "center", fontWeight: "900", borderWidth: 1, borderColor: theme.colors.border },
+  teamLink: { marginTop: 8, color: theme.colors.primary, padding: 10, textAlign: "center", fontWeight: "800" },
 });
