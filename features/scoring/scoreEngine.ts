@@ -54,3 +54,20 @@ export function calculateTeamScore(
     };
   });
 }
+
+
+export function calculateEntryPoints(
+  selectedPlayerIds: string[],
+  captainId: string,
+  viceCaptainId: string,
+  scores: PlayerStats[],
+  sport: "cricket" | "football",
+) {
+  const selected = new Set(selectedPlayerIds);
+  return calculateTeamScore(
+    scores.filter((player) => selected.has(player.playerId)),
+    captainId,
+    viceCaptainId,
+    sport,
+  ).reduce((total, score) => total + score.totalPoints, 0);
+}
