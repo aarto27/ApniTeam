@@ -9,7 +9,7 @@ export type MatchRecord = {
   awayTeam: string;
   startsAt: string;
   effectiveStartsAt: string;
-  status?: string;
+  status?: MatchPhase;
   providerStatus?: string | null;
   toss?: string | null;
   lineupAnnounced?: boolean;
@@ -43,6 +43,7 @@ export function normalizeMatch(row: Record<string, unknown>): MatchRecord {
   const startsAt = String(row.starts_at ?? row.start_time ?? row.match_start_time ?? new Date().toISOString());
   const effectiveStartsAt = String(row.effective_starts_at ?? row.effective_start_time ?? startsAt);
   const generatedTitle = [homeTeam, awayTeam].filter(Boolean).join(" vs ");
+  const rawStatus = row.status ? String(row.status) : undefined;
 
   return {
     id: String(row.id),
@@ -53,7 +54,10 @@ export function normalizeMatch(row: Record<string, unknown>): MatchRecord {
     awayTeam,
     startsAt,
     effectiveStartsAt,
-    status: row.status ? String(row.status) : undefined,
+    status: resolveMatchPhase({
+      id: String(row.id), sport: String(row.sport ?? "cricket"), title: String(row.title ?? row.name ?? (generatedTitle || "Match")),
+      homeTeam, awayTeam, startsAt, effectiveStartsAt, status: rawStatus, providerStatus: row.provider_status ? String(row.provider_status) : null,
+    }),
     providerStatus: row.provider_status ? String(row.provider_status) : null,
     toss: row.toss ? String(row.toss) : null,
     lineupAnnounced: Boolean(row.lineup_announced),
