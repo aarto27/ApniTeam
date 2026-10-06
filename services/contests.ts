@@ -8,36 +8,28 @@ export type Contest = {
   prizePool: number;
   totalSpots: number;
   filledSpots: number;
-  raw: Record<string, unknown>;
-};
-
-const numberValue = (value: unknown) => {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
-};
-
-const first = (row: Record<string, unknown>, keys: string[]) => {
-  for (const key of keys) if (row[key] !== undefined && row[key] !== null) return row[key];
-  return null;
+  status?: string;
 };
 
 export async function listContests(matchId: string): Promise<Contest[]> {
-  const { data, error } = await supabase.from("contests").select("*").eq("match_id", matchId);
+  const { data, error } = await supabase
+    .from("contests")
+    .select("*")
+    .eq("match_id", matchId)
+    .order("entry_fee", { ascending: true });
+
   if (error) throw error;
 
-  return (data ?? []).map((raw) => {
-    const row = raw as Record<string, unknown>;
-    return {
-      id: String(first(row, ["id", "contest_id"]) ?? ""),
-      matchId: String(first(row, ["match_id", "matchId"]) ?? matchId),
-      name: String(first(row, ["name", "title", "contest_name"]) ?? "Contest"),
-      entryFee: numberValue(first(row, ["entry_fee", "entryFee", "fee"])),
-      prizePool: numberValue(first(row, ["prize_pool", "prizePool", "total_prize"])),
-      totalSpots: numberValue(first(row, ["total_spots", "max_spots", "spots"])),
-      filledSpots: numberValue(first(row, ["filled_spots", "joined_spots", "spots_filled"])),
-      raw: row,
-    };
-  }).filter((contest) => Boolean(contest.id));
+  return (data ?? []).map((row) => ({
+    id: String(row.id),
+    matchId: String(row.match_id),
+    name: String(row.name ?? row.title ?? "Contest"),
+    entryFee: Number(row.entry_fee ?? 0),
+    prizePool: Number(row.prize_pool ?? 0),
+    totalSpots: Number(row.total_spots ?? row.max_spots ?? 0),
+    filledSpots: Number(row.filled_spots ?? row.joined_spots ?? 0),
+    status: row.status ? String(row.status) : undefined,
+  }));
 }
 
 export async function joinContest(contestId: string, teamId: string) {
@@ -45,6 +37,7 @@ export async function joinContest(contestId: string, teamId: string) {
     p_contest_id: contestId,
     p_team_id: teamId,
   });
+
   if (error) throw error;
-  return data;
+  return data as string;
 }
