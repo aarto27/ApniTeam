@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "ApniTeam",
+    "slug": "apniteam",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "apniteam",
+    "plugins": [
+      "expo-router"
+    ],
+    "android": {
+      "package": "com.apniteam.app"
+    },
+    "ios": {
+      "bundleIdentifier": "com.apniteam.app"
+    }
+  }
+}
