@@ -1,1 +1,110 @@
-import { useLocalSearchParams } from "expo-router"; import { StyleSheet, Text, View } from "react-native"; import { theme } from "../../lib/theme"; export default function Team(){const {matchId}=useLocalSearchParams();return <View style={s.page}><Text style={s.title}>Create Team</Text><Text style={s.sub}>Match {matchId}</Text><View style={s.roles}><Text style={s.role}>WK</Text><Text style={s.role}>BAT</Text><Text style={s.role}>AR</Text><Text style={s.role}>BOWL</Text></View><View style={s.card}><Text style={s.count}>0 / 11 players</Text><Text style={s.credits}>100 credits remaining</Text><Text style={s.muted}>Player catalog and role constraints will be loaded from the canonical match service.</Text></View></View>}const s=StyleSheet.create({page:{flex:1,backgroundColor:theme.colors.bg,padding:20,paddingTop:28},title:{fontSize:30,fontWeight:"900",color:theme.colors.text},sub:{marginTop:4,color:theme.colors.muted},roles:{marginTop:20,flexDirection:"row",gap:8},role:{backgroundColor:"#fff",paddingVertical:10,paddingHorizontal:14,borderRadius:999,borderWidth:1,borderColor:theme.colors.border,fontWeight:"800"},card:{marginTop:18,backgroundColor:"#fff",borderRadius:18,borderWidth:1,borderColor:theme.colors.border,padding:18},count:{fontSize:20,fontWeight:"900"},credits:{marginTop:4,color:theme.colors.primary,fontWeight:"800"},muted:{marginTop:10,color:theme.colors.muted,lineHeight:20}});
+import { useLocalSearchParams, router } from "expo-router";
+import { useMemo, useState } from "react";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useMatch } from "../../features/matches/useMatches";
+import { useMatchPlayers, useSaveTeam } from "../../features/teams/useTeamBuilder";
+import { roleLabel, setCaptain, setViceCaptain, togglePlayer, validateDraft, type BuilderPlayer, type TeamDraft } from "../../features/teams/teamBuilder";
+import { theme } from "../../lib/theme";
+
+const initialDraft: TeamDraft = { players: [], captainId: null, viceCaptainId: null };
+
+export default function TeamBuilder() {
+  const { matchId } = useLocalSearchParams<{ matchId: string }>();
+  const id = String(matchId ?? "");
+  const { data: match } = useMatch(id);
+  const { data: players = [], isLoading } = useMatchPlayers(id);
+  const saveTeam = useSaveTeam();
+  const [draft, setDraft] = useState<TeamDraft>(initialDraft);
+  const [teamName, setTeamName] = useState("My Team");
+
+  const validation = useMemo(() => validateDraft(draft, match?.sport === "football" ? "football" : "cricket"), [draft, match?.sport]);
+
+  const handleSave = async () => {
+    if (!validation.valid) return;
+    await saveTeam.mutateAsync({ matchId: id, teamName, draft });
+    router.back();
+  };
+
+  const toggle = (player: BuilderPlayer) => setDraft((current) => togglePlayer(current, player));
+
+  if (isLoading) return <View style={styles.center}><ActivityIndicator color={theme.colors.primary} /></View>;
+
+  return (
+    <View style={styles.page}>
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.kicker}>CREATE TEAM</Text>
+          <Text style={styles.title}>{match?.title ?? "Match"}</Text>
+        </View>
+        <Text style={styles.counter}>{draft.players.length}/11</Text>
+      </View>
+
+      <TextInput value={teamName} onChangeText={setTeamName} placeholder="Team name" placeholderTextColor={theme.colors.muted} style={styles.input} />
+
+      <View style={styles.summary}>
+        <Text style={styles.summaryText}>C: {draft.captainId ? "Selected" : "Pending"}</Text>
+        <Text style={styles.summaryText}>VC: {draft.viceCaptainId ? "Selected" : "Pending"}</Text>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.list}>
+        {players.map((player) => {
+          const selected = draft.players.some((item) => item.id === player.id);
+          const captain = draft.captainId === player.id;
+          const vice = draft.viceCaptainId === player.id;
+
+          return (
+            <Pressable key={player.id} onPress={() => toggle(player)} style={[styles.player, selected && styles.selected]}>
+              <View style={styles.playerInfo}>
+                <Text style={styles.playerName}>{player.name}</Text>
+                <Text style={styles.playerMeta}>{roleLabel(player.role)}{player.teamName ? " · " + player.teamName : ""}</Text>
+              </View>
+              {selected && (
+                <View style={styles.roleActions}>
+                  <Pressable onPress={() => setDraft((d) => setCaptain(d, player.id))} style={[styles.badge, captain && styles.activeBadge]}>
+                    <Text style={[styles.badgeText, captain && styles.activeBadgeText]}>C</Text>
+                  </Pressable>
+                  <Pressable onPress={() => setDraft((d) => setViceCaptain(d, player.id))} style={[styles.badge, vice && styles.activeBadge]}>
+                    <Text style={[styles.badgeText, vice && styles.activeBadgeText]}>VC</Text>
+                  </Pressable>
+                </View>
+              )}
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      {validation.errors.length > 0 && <Text style={styles.error}>{validation.errors[0]}</Text>}
+
+      <Pressable disabled={!validation.valid || saveTeam.isPending} onPress={handleSave} style={[styles.button, (!validation.valid || saveTeam.isPending) && styles.disabled]}>
+        <Text style={styles.buttonText}>{saveTeam.isPending ? "Saving..." : "Save Team"}</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  page: { flex: 1, backgroundColor: theme.colors.bg, padding: 16, paddingTop: 22 },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.bg },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  kicker: { fontSize: 10, fontWeight: "900", color: theme.colors.primary, letterSpacing: 1.2 },
+  title: { fontSize: 22, fontWeight: "900", color: theme.colors.text, marginTop: 4 },
+  counter: { fontSize: 18, fontWeight: "900", color: theme.colors.primary },
+  input: { backgroundColor: "#fff", borderWidth: 1, borderColor: theme.colors.border, borderRadius: 14, padding: 13, marginTop: 14, color: theme.colors.text },
+  summary: { flexDirection: "row", gap: 10, marginTop: 10 },
+  summaryText: { backgroundColor: "#fff", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 7, color: theme.colors.muted, fontSize: 12, fontWeight: "700" },
+  list: { paddingTop: 12, paddingBottom: 90 },
+  player: { backgroundColor: "#fff", borderRadius: 14, borderWidth: 1, borderColor: theme.colors.border, padding: 13, marginBottom: 8, flexDirection: "row", alignItems: "center" },
+  selected: { borderColor: theme.colors.primary },
+  playerInfo: { flex: 1 },
+  playerName: { fontSize: 15, fontWeight: "800", color: theme.colors.text },
+  playerMeta: { fontSize: 11, color: theme.colors.muted, marginTop: 3 },
+  roleActions: { flexDirection: "row", gap: 6 },
+  badge: { width: 34, height: 30, borderRadius: 9, borderWidth: 1, borderColor: theme.colors.border, alignItems: "center", justifyContent: "center" },
+  activeBadge: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
+  badgeText: { fontSize: 10, fontWeight: "900", color: theme.colors.muted },
+  activeBadgeText: { color: "#fff" },
+  error: { position: "absolute", bottom: 72, left: 16, right: 16, color: theme.colors.primary, fontSize: 12, fontWeight: "700" },
+  button: { position: "absolute", bottom: 16, left: 16, right: 16, backgroundColor: theme.colors.primary, borderRadius: 14, padding: 16, alignItems: "center" },
+  disabled: { opacity: 0.45 },
+  buttonText: { color: "#fff", fontWeight: "900", fontSize: 15 },
+});
