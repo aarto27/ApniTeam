@@ -9,7 +9,7 @@ serve(async (request) => {
   if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
 
   const expectedSecret = Deno.env.get("AUTH_HOOK_SECRET");
-  const suppliedSecret = request.headers.get("x-apniteam-hook-secret") ?? request.headers.get("Authorization")?.replace(/^Bearer\\s+/i, "");
+  const suppliedSecret = request.headers.get("x-apniteam-hook-secret") ?? request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
   if (expectedSecret && suppliedSecret !== expectedSecret) return new Response("Unauthorized", { status: 401 });
 
   const event = (await request.json()) as HookEvent;
