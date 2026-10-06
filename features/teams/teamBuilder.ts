@@ -1,4 +1,5 @@
 import { validateFantasyTeam, type SelectedPlayer, type TeamRole } from "./teamRules";
+export type { TeamRole } from "./teamRules";
 
 export type BuilderPlayer = SelectedPlayer & {
   name: string;
