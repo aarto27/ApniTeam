@@ -16,6 +16,9 @@ as $$
 declare
   v_user uuid := auth.uid();
   v_team_id uuid;
+  v_sport text;
+  v_unique_count integer;
+  v_role_error boolean := false;
 begin
   if v_user is null then raise exception 'not_authenticated'; end if;
   if coalesce(trim(p_team_name), '') = '' then raise exception 'team_name_required'; end if;
@@ -27,10 +30,33 @@ begin
     raise exception 'captain_must_be_selected';
   end if;
 
-  -- Team validation belongs here too. The client validation is only UX.
-  if (select count(*) from public.match_players mp
-      where mp.match_id = p_match_id and mp.player_id::text = any(p_player_ids)) <> 11 then
-    raise exception 'invalid_player_selection';
+  select m.sport into v_sport from public.matches m where m.id = p_match_id;
+  if not found then raise exception 'match_not_found'; end if;
+
+  select count(distinct mp.player_id) into v_unique_count
+  from public.match_players mp
+  where mp.match_id = p_match_id and mp.player_id::text = any(p_player_ids);
+  if v_unique_count <> 11 then raise exception 'invalid_player_selection'; end if;
+
+  if v_sport = 'football' then
+    if (select count(*) from public.match_players mp where mp.match_id = p_match_id and mp.player_id::text = any(p_player_ids) and mp.role = 'GK') <> 1 then raise exception 'invalid_goalkeeper_count'; end if;
+    if (select count(*) from public.match_players mp where mp.match_id = p_match_id and mp.player_id::text = any(p_player_ids) and mp.role = 'DEF') not between 3 and 5 then raise exception 'invalid_defender_count'; end if;
+    if (select count(*) from public.match_players mp where mp.match_id = p_match_id and mp.player_id::text = any(p_player_ids) and mp.role = 'MID') not between 3 and 5 then raise exception 'invalid_midfielder_count'; end if;
+    if (select count(*) from public.match_players mp where mp.match_id = p_match_id and mp.player_id::text = any(p_player_ids) and mp.role = 'ST') not between 1 and 3 then raise exception 'invalid_striker_count'; end if;
+  else
+    if (select count(*) from public.match_players mp where mp.match_id = p_match_id and mp.player_id::text = any(p_player_ids) and mp.role = 'WK') not between 1 and 4 then raise exception 'invalid_wicketkeeper_count'; end if;
+    if (select count(*) from public.match_players mp where mp.match_id = p_match_id and mp.player_id::text = any(p_player_ids) and mp.role = 'BAT') not between 3 and 6 then raise exception 'invalid_batter_count'; end if;
+    if (select count(*) from public.match_players mp where mp.match_id = p_match_id and mp.player_id::text = any(p_player_ids) and mp.role = 'AR') not between 1 and 4 then raise exception 'invalid_allrounder_count'; end if;
+    if (select count(*) from public.match_players mp where mp.match_id = p_match_id and mp.player_id::text = any(p_player_ids) and mp.role = 'BOWL') not between 3 and 6 then raise exception 'invalid_bowler_count'; end if;
+  end if;
+
+  if (select max(team_count) from (
+      select mp.team_id, count(*) as team_count
+      from public.match_players mp
+      where mp.match_id = p_match_id and mp.player_id::text = any(p_player_ids)
+      group by mp.team_id
+    ) grouped) > 7 then
+    raise exception 'too_many_players_from_one_team';
   end if;
 
   insert into public.user_teams (
