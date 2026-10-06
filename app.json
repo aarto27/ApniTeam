@@ -14,5 +14,9 @@
     "ios": {
       "bundleIdentifier": "com.apniteam.app"
     }
-  }
+  },
+  "plugins": [
+    "expo-router",
+    "expo-notifications"
+  ]
 }
