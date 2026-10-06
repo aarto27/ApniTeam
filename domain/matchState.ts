@@ -18,7 +18,6 @@ export type MatchRecord = {
 };
 
 const asString = (value: unknown): string | null => value === null || value === undefined || value === "" ? null : String(value);
-
 const asBool = (value: unknown): boolean => value === true || value === 1 || value === "1" || value === "true";
 
 const asDateMs = (value: unknown): number => {
@@ -70,7 +69,6 @@ export function resolveMatchPhase(row: {
   const start = asDateMs(row.effectiveStartsAt ?? row.startsAt);
   const started = Number.isFinite(start) && Date.now() >= start;
 
-  // A provider live flag is never allowed to move a future match to live.
   if (providerPhase === "live" && started) return "live";
   if (asBool(row.liveProviderState) && started) return "live";
   return "upcoming";
@@ -86,7 +84,8 @@ export function normalizeMatch(row: Record<string, unknown>): MatchRecord {
   const homeName = typeof home === "object" && home ? String((home as Record<string, unknown>).name ?? "") : String(home ?? "");
   const awayName = typeof away === "object" && away ? String((away as Record<string, unknown>).name ?? "") : String(away ?? "");
   const rawTitle = first(row, ["title", "name", "match_name"]);
-  const title = String(rawTitle ?? [homeName, awayName].filter(Boolean).join(" vs ") || "Match");
+  const generatedTitle = [homeName, awayName].filter(Boolean).join(" vs ");
+  const title = String(rawTitle ?? (generatedTitle || "Match"));
 
   const phase = resolveMatchPhase({
     status: providerStatus,
