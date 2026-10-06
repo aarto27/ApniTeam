@@ -1,27 +1,55 @@
 import { useLocalSearchParams, router } from "expo-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useMatch } from "../../features/matches/useMatches";
 import { useMatchPlayers, useSaveTeam } from "../../features/teams/useTeamBuilder";
+import { useMyTeams } from "../../features/teams/useMyTeams";
 import { roleLabel, setCaptain, setViceCaptain, togglePlayer, validateDraft, type BuilderPlayer, type TeamDraft } from "../../features/teams/teamBuilder";
 import { theme } from "../../lib/theme";
+import { isJoinable } from "../../domain/matchTiming";
 
 const initialDraft: TeamDraft = { players: [], captainId: null, viceCaptainId: null };
 
 export default function TeamBuilder() {
-  const { matchId } = useLocalSearchParams<{ matchId: string }>();
+  const { matchId, teamId } = useLocalSearchParams<{ matchId: string; teamId?: string }>();
   const id = String(matchId ?? "");
+  const editTeamId = teamId ? String(teamId) : undefined;
   const { data: match } = useMatch(id);
   const { data: players = [], isLoading } = useMatchPlayers(id);
+  const { data: myTeams = [] } = useMyTeams(id);
   const saveTeam = useSaveTeam();
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!editTeamId || !players.length || !myTeams.length) return;
+    const existing = myTeams.find((team) => team.id === editTeamId);
+    if (!existing) return;
+    setTeamName(existing.name);
+    setDraft({
+      players: players.filter((player) => existing.players.includes(player.id)),
+      captainId: existing.captainId ?? null,
+      viceCaptainId: existing.viceCaptainId ?? null,
+    });
+  }, [editTeamId, myTeams, players]);
   const [draft, setDraft] = useState<TeamDraft>(initialDraft);
   const [teamName, setTeamName] = useState("My Team");
 
   const validation = useMemo(() => validateDraft(draft, match?.sport === "football" ? "football" : "cricket"), [draft, match?.sport]);
+  const joinable = Boolean(match && isJoinable({
+    scheduledStart: match.startsAt,
+    effectiveStart: match.effectiveStartsAt,
+    deadlineAt: match.deadlineAt ?? null,
+  }, now));
 
   const handleSave = async () => {
     if (!validation.valid) return;
-    await saveTeam.mutateAsync({ matchId: id, teamName, draft });
+    if (!joinable) return;
+    await saveTeam.mutateAsync({ matchId: id, teamId: editTeamId, teamName, draft });
     router.back();
   };
 
@@ -33,7 +61,7 @@ export default function TeamBuilder() {
     <View style={styles.page}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.kicker}>CREATE TEAM</Text>
+          <Text style={styles.kicker}>{editTeamId ? "EDIT TEAM" : "CREATE TEAM"}</Text>
           <Text style={styles.title}>{match?.title ?? "Match"}</Text>
         </View>
         <Text style={styles.counter}>{draft.players.length}/11</Text>
@@ -74,8 +102,9 @@ export default function TeamBuilder() {
       </ScrollView>
 
       {validation.errors.length > 0 && <Text style={styles.error}>{validation.errors[0]}</Text>}
+      {!joinable && <Text style={styles.error}>Team changes are closed for this match.</Text>}
 
-      <Pressable disabled={!validation.valid || saveTeam.isPending} onPress={handleSave} style={[styles.button, (!validation.valid || saveTeam.isPending) && styles.disabled]}>
+      <Pressable disabled={!validation.valid || !joinable || saveTeam.isPending} onPress={handleSave} style={[styles.button, (!validation.valid || !joinable || saveTeam.isPending) && styles.disabled]}>
         <Text style={styles.buttonText}>{saveTeam.isPending ? "Saving..." : "Save Team"}</Text>
       </Pressable>
     </View>
