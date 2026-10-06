@@ -1,3 +1,5 @@
+import { cricketFantasyPoints } from "./scoringRules";
+
 export type PlayerStats = {
   playerId: string;
   runs?: number;
@@ -27,14 +29,11 @@ export function calculatePlayerScore(stats: PlayerStats, sport: "cricket" | "foo
       (stats.cleanSheet ? 4 : 0);
   }
 
-  return (stats.runs ?? 0) +
-    (stats.fours ?? 0) +
-    (stats.sixes ?? 0) * 2 +
-    (stats.wickets ?? 0) * 25 +
-    (stats.catches ?? 0) * 8 +
-    (stats.stumpings ?? 0) * 12 +
-    (stats.runOuts ?? 0) * 6 +
-    (stats.maidens ?? 0) * 8;
+  return cricketFantasyPoints({
+    runs: stats.runs, fours: stats.fours, sixes: stats.sixes,
+    wickets: stats.wickets, catches: stats.catches, stumpings: stats.stumpings,
+    runOuts: stats.runOuts, maidenOvers: stats.maidens,
+  });
 }
 
 export function calculateTeamScore(
