@@ -114,7 +114,7 @@ begin
     return false;
   end if;
 
-  insert into public.match_player_scores(match_id, player_id, points, updated_at)
+  insert into public.match_player_scores(match_id, player_id, points, last_event_at, updated_at)
   values (p_match_id, p_player_id, p_points, p_occurred_at, now())
   on conflict (match_id, player_id) do update
     set points = excluded.points,
