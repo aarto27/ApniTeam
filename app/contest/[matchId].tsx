@@ -41,7 +41,7 @@ export default function Contests() {
       )}
 
       {contests.map((contest) => {
-        const decision = canJoinContest({ matchStatus: match?.status ?? "upcoming", deadlineAt: match?.deadlineAt ?? null });
+        const decision = canJoinContest({ matchStatus: match?.status ?? "upcoming", deadlineAt: match?.deadlineAt ?? null, effectiveStartsAt: match?.effectiveStartsAt ?? match?.startsAt ?? null });
         const disabled = !decision.allowed || !selectedTeamId || join.isPending;
 
         return (
