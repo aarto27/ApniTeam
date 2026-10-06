@@ -64,11 +64,15 @@ declare
   v_user uuid := auth.uid();
   v_entry_id uuid;
   v_fee numeric;
+  v_match_id uuid;
+  v_effective_start timestamptz;
+  v_deadline timestamptz;
+  v_status text;
 begin
   if v_user is null then raise exception 'not_authenticated'; end if;
 
-  select c.entry_fee
-    into v_fee
+  select c.entry_fee, c.match_id
+    into v_fee, v_match_id
   from public.contests c
   where c.id = p_contest_id
     and c.status = 'open'
@@ -77,11 +81,21 @@ begin
 
   if not found then raise exception 'contest_unavailable'; end if;
 
+  select m.effective_starts_at, m.deadline_at, m.status
+    into v_effective_start, v_deadline, v_status
+  from public.matches m
+  where m.id = v_match_id;
+
+  if not found then raise exception 'match_not_found'; end if;
+  if v_status in ('completed', 'cancelled') then raise exception 'match_closed'; end if;
+  if v_deadline is not null and now() >= v_deadline then raise exception 'deadline_passed'; end if;
+  if v_effective_start is not null and now() >= v_effective_start then raise exception 'match_started'; end if;
+
   if not exists (
     select 1 from public.user_teams t
-    where t.id = p_team_id and t.user_id = v_user
+    where t.id = p_team_id and t.user_id = v_user and t.match_id = v_match_id
   ) then
-    raise exception 'team_not_owned';
+    raise exception 'team_not_owned_for_match';
   end if;
 
   if exists (
@@ -91,10 +105,21 @@ begin
     raise exception 'already_joined';
   end if;
 
-  -- The concrete wallet schema should expose a single authoritative balance.
-  -- Implement the debit ledger atomically in the production wallet migration.
-  raise exception 'wallet_transaction_contract_not_installed'
-    using hint = 'Install the wallet ledger migration before enabling contest joins';
+  perform public.debit_wallet(
+    v_user,
+    v_fee,
+    'contest_entry',
+    p_contest_id::text,
+    'contest:' || p_contest_id::text || ':user:' || v_user::text
+  );
+
+  insert into public.contest_entries(contest_id, user_id, team_id)
+  values (p_contest_id, v_user, p_team_id)
+  returning id into v_entry_id;
+
+  update public.contests
+  set filled_spots = filled_spots + 1
+  where id = p_contest_id;
 
   return v_entry_id;
 end;
