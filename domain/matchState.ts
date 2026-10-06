@@ -56,7 +56,7 @@ export function normalizeMatch(row: Record<string, unknown>): MatchRecord {
     effectiveStartsAt,
     status: resolveMatchPhase({
       id: String(row.id), sport: String(row.sport ?? "cricket"), title: String(row.title ?? row.name ?? (generatedTitle || "Match")),
-      homeTeam, awayTeam, startsAt, effectiveStartsAt, status: rawStatus, providerStatus: row.provider_status ? String(row.provider_status) : null,
+      homeTeam, awayTeam, startsAt, effectiveStartsAt, status: rawStatus as MatchPhase, providerStatus: row.provider_status ? String(row.provider_status) : null,
     }),
     providerStatus: row.provider_status ? String(row.provider_status) : null,
     toss: row.toss ? String(row.toss) : null,
