@@ -278,3 +278,11 @@ grant execute on function public.request_withdrawal(numeric,jsonb) to authentica
 grant execute on function public.resolve_withdrawal(uuid,text,text) to authenticated;
 grant execute on function public.register_push_token(text,text) to authenticated;
 grant execute on function public.mark_notification_read(uuid) to authenticated;
+
+drop policy if exists withdrawals_admin_read on public.withdrawal_requests;
+create policy withdrawals_admin_read on public.withdrawal_requests
+  for select to authenticated using (user_id = auth.uid() or public.is_admin());
+
+drop policy if exists admin_audit_admin_read on public.admin_audit_log;
+create policy admin_audit_admin_read on public.admin_audit_log
+  for select to authenticated using (public.is_admin());
