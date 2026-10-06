@@ -10,6 +10,12 @@ export default function More() {
       <Link href="/profile" asChild>
         <Pressable style={s.item}><Text style={s.itemText}>Profile & team name</Text><Text style={s.arrow}>›</Text></Pressable>
       </Link>
+      <Link href="/notifications" asChild>
+        <Pressable style={s.item}><Text style={s.itemText}>Notifications</Text><Text style={s.arrow}>›</Text></Pressable>
+      </Link>
+      <Link href="/admin" asChild>
+        <Pressable style={s.item}><Text style={s.itemText}>Admin operations</Text><Text style={s.arrow}>›</Text></Pressable>
+      </Link>
     </View>
   );
 }
