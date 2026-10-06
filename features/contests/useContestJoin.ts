@@ -9,6 +9,7 @@ export function useContestJoin(matchId: string) {
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["contests", matchId] }),
+        queryClient.invalidateQueries({ queryKey: ["contest-entries", matchId] }),
         queryClient.invalidateQueries({ queryKey: ["my-matches"] }),
         queryClient.invalidateQueries({ queryKey: ["wallet"] }),
       ]);
