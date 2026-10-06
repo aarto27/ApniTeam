@@ -34,6 +34,22 @@ serve(async (request) => {
 
   if (expected !== signature) return new Response("Invalid payment signature", { status: 400 });
 
+  const razorpayKey = Deno.env.get("RAZORPAY_KEY_ID");
+  if (!razorpayKey) return new Response("Payment configuration missing", { status: 500 });
+  const basic = btoa(razorpayKey + ":" + razorpaySecret);
+  const orderResponse = await fetch("https://api.razorpay.com/v1/orders/" + encodeURIComponent(orderId), {
+    headers: { Authorization: "Basic " + basic },
+  });
+  if (!orderResponse.ok) return new Response("Unable to verify payment order", { status: 502 });
+  const order = await orderResponse.json();
+  const verifiedAmount = Number(order.amount) / 100;
+  if (order.status !== "paid" && Number.isFinite(order.amount) && verifiedAmount !== amount) {
+    return new Response("Payment amount mismatch", { status: 400 });
+  }
+  if (order.notes?.user_id && order.notes.user_id !== user.id) {
+    return new Response("Payment owner mismatch", { status: 403 });
+  }
+
   const { error } = await admin.rpc("credit_wallet", {
     p_user_id: user.id,
     p_amount: amount,
