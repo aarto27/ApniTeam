@@ -47,7 +47,7 @@ export function normalizeMatch(row: Record<string, unknown>): MatchRecord {
   return {
     id: String(row.id),
     sport: String(row.sport ?? "cricket"),
-    title: String(row.title ?? row.name ?? generatedTitle || "Match"),
+    title: String(row.title ?? row.name ?? (generatedTitle || "Match")),
     shortTitle: row.short_title ? String(row.short_title) : undefined,
     homeTeam,
     awayTeam,
