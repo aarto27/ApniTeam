@@ -37,8 +37,11 @@ Production checklist
 - Configure the Supabase Auth Send SMS Hook and MSG91 secrets.
 - Configure Razorpay secrets and reconciliation/webhook policy.
 - Verify RLS against actual provider/admin roles.
-- Deploy sports feed ingestion and live scoring workers.
-- Configure push notifications.
+- Configure a real sports provider adapter and its server credentials.
+- Deploy match-sync, sports-feed-ingest and settlement workers.
+- Configure MSG91, Razorpay webhook, push and internal worker secrets.
+- Apply all migrations to the intended Supabase project.
+- Seed contest_prizes for every paid contest before settlement.
 - Test DD extension and early-toss cases with real provider payloads.
-- Run Android/iOS release builds.
-- Test payment, settlement and withdrawal flows with appropriate credentials.
+- Run `eas build --profile preview` for an installable APK and `eas build --profile production` for Play Store AAB.
+- Test payment, settlement and withdrawal flows with appropriate credentials and compliance requirements.

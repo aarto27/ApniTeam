@@ -33,6 +33,11 @@ begin
   set rank = r.calculated_rank, updated_at = now()
   from ranked r
   where l.contest_id = p_contest_id and l.entry_id = r.entry_id;
+
+  update public.contest_entries ce
+  set rank = r.calculated_rank
+  from ranked r
+  where ce.contest_id = p_contest_id and ce.id = r.entry_id;
 end;
 $$;
 

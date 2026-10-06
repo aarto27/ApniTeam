@@ -2,6 +2,7 @@ import { Stack } from "expo-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { theme } from "../lib/theme";
+import { usePushRegistration } from "../features/notifications/usePushRegistration";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -15,6 +16,8 @@ const queryClient = new QueryClient({
 });
 
 export default function RootLayout() {
+  usePushRegistration();
+
   return (
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
@@ -32,6 +35,9 @@ export default function RootLayout() {
           <Stack.Screen name="match/[id]" options={{ title: "Match" }} />
           <Stack.Screen name="contest/[matchId]" options={{ title: "Contests" }} />
           <Stack.Screen name="team/[matchId]" options={{ title: "Create Team" }} />
+          <Stack.Screen name="notifications" options={{ title: "Notifications" }} />
+          <Stack.Screen name="admin" options={{ title: "Admin" }} />
+          <Stack.Screen name="withdraw" options={{ title: "Withdraw" }} />
         </Stack>
       </QueryClientProvider>
     </SafeAreaProvider>
