@@ -9,6 +9,8 @@ export type Contest = {
   totalSpots: number;
   filledSpots: number;
   status?: string;
+  remainingSpots: number;
+  isFull: boolean;
 };
 
 export async function listContests(matchId: string): Promise<Contest[]> {
@@ -29,6 +31,8 @@ export async function listContests(matchId: string): Promise<Contest[]> {
     totalSpots: Number(row.total_spots ?? row.max_spots ?? 0),
     filledSpots: Number(row.filled_spots ?? row.joined_spots ?? 0),
     status: row.status ? String(row.status) : undefined,
+    remainingSpots: Math.max(0, Number(row.total_spots ?? row.max_spots ?? 0) - Number(row.filled_spots ?? row.joined_spots ?? 0)),
+    isFull: Number(row.filled_spots ?? row.joined_spots ?? 0) >= Number(row.total_spots ?? row.max_spots ?? 0),
   }));
 }
 
