@@ -2,114 +2,62 @@ export type MatchPhase = "upcoming" | "live" | "completed" | "cancelled";
 
 export type MatchRecord = {
   id: string;
-  sport: "cricket" | "football" | "unknown";
+  sport: "cricket" | "football" | string;
   title: string;
-  shortTitle: string;
+  shortTitle?: string;
   homeTeam: string;
   awayTeam: string;
-  startsAt: string | null;
-  effectiveStartsAt: string | null;
-  status: MatchPhase;
-  providerStatus: string | null;
-  toss: string | null;
-  lineupAnnounced: boolean;
-  deadlineAt: string | null;
-  metadata: Record<string, unknown>;
+  startsAt: string;
+  effectiveStartsAt: string;
+  status?: string;
+  providerStatus?: string | null;
+  toss?: string | null;
+  lineupAnnounced?: boolean;
+  deadlineAt?: string | null;
+  metadata?: Record<string, unknown>;
 };
 
-const asString = (value: unknown): string | null => value === null || value === undefined || value === "" ? null : String(value);
-const asBool = (value: unknown): boolean => value === true || value === 1 || value === "1" || value === "true";
+const cancelled = new Set(["cancelled", "abandoned", "postponed"]);
+const completed = new Set(["completed", "finished", "ended"]);
 
-const asDateMs = (value: unknown): number => {
-  if (value instanceof Date) return value.getTime();
-  if (typeof value === "number") return value < 100000000000 ? value * 1000 : value;
-  if (typeof value === "string") {
-    const ms = Date.parse(value);
-    return Number.isFinite(ms) ? ms : NaN;
-  }
-  return NaN;
-};
+export function resolveMatchPhase(match: MatchRecord, now = Date.now()): MatchPhase {
+  const status = String(match.status ?? "").toLowerCase();
+  const provider = String(match.providerStatus ?? "").toLowerCase();
 
-const first = (row: Record<string, unknown>, keys: string[]) => {
-  for (const key of keys) {
-    if (row[key] !== undefined && row[key] !== null && row[key] !== "") return row[key];
-  }
-  return null;
-};
+  if (cancelled.has(status) || cancelled.has(provider)) return "cancelled";
+  if (completed.has(status) || completed.has(provider)) return "completed";
 
-const normalizeSport = (value: unknown): MatchRecord["sport"] => {
-  const sport = String(value ?? "").toLowerCase();
-  if (sport.includes("cricket")) return "cricket";
-  if (sport.includes("football") || sport.includes("soccer")) return "football";
-  return "unknown";
-};
+  const effectiveStart = new Date(match.effectiveStartsAt || match.startsAt).getTime();
+  if (!Number.isFinite(effectiveStart)) return "upcoming";
 
-const normalizeProviderStatus = (value: unknown): MatchPhase => {
-  const status = String(value ?? "").trim().toLowerCase();
-  if (["cancelled", "canceled", "abandoned", "4"].includes(status)) return "cancelled";
-  if (["completed", "complete", "finished", "ft", "result", "2"].includes(status)) return "completed";
-  if (["live", "in progress", "ongoing", "1h", "2h", "ht", "pen", "3"].includes(status)) return "live";
-  return "upcoming";
-};
+  // Provider live signals are advisory until the effective start.
+  if (now >= effectiveStart && (status === "live" || provider === "live")) return "live";
+  if (now >= effectiveStart && match.metadata?.liveProviderState === "live") return "live";
 
-export function resolveMatchPhase(row: {
-  status?: unknown;
-  startsAt?: unknown;
-  effectiveStartsAt?: unknown;
-  completed?: unknown;
-  cancelled?: unknown;
-  liveProviderState?: unknown;
-}): MatchPhase {
-  if (asBool(row.cancelled)) return "cancelled";
-  if (asBool(row.completed)) return "completed";
-
-  const providerPhase = normalizeProviderStatus(row.status);
-  if (providerPhase === "cancelled" || providerPhase === "completed") return providerPhase;
-
-  const start = asDateMs(row.effectiveStartsAt ?? row.startsAt);
-  const started = Number.isFinite(start) && Date.now() >= start;
-
-  if (providerPhase === "live" && started) return "live";
-  if (asBool(row.liveProviderState) && started) return "live";
   return "upcoming";
 }
 
 export function normalizeMatch(row: Record<string, unknown>): MatchRecord {
-  const home = first(row, ["home_team", "homeTeam", "team1", "team_a", "home"]);
-  const away = first(row, ["away_team", "awayTeam", "team2", "team_b", "away"]);
-  const startsAt = first(row, ["start_time", "starts_at", "startTime", "scheduled_start", "match_time", "date_start"]);
-  const effectiveStartsAt = first(row, ["effective_start_time", "effective_starts_at", "effectiveStartTime", "rescheduled_start"]);
-  const providerStatus = first(row, ["status", "match_status", "provider_status", "state"]);
-  const sport = normalizeSport(first(row, ["sport", "sport_type", "game_type"]));
-  const homeName = typeof home === "object" && home ? String((home as Record<string, unknown>).name ?? "") : String(home ?? "");
-  const awayName = typeof away === "object" && away ? String((away as Record<string, unknown>).name ?? "") : String(away ?? "");
-  const rawTitle = first(row, ["title", "name", "match_name"]);
-  const generatedTitle = [homeName, awayName].filter(Boolean).join(" vs ");
-  const title = String(rawTitle ?? (generatedTitle || "Match"));
-
-  const phase = resolveMatchPhase({
-    status: providerStatus,
-    startsAt,
-    effectiveStartsAt: effectiveStartsAt ?? startsAt,
-    completed: first(row, ["completed", "is_completed"]),
-    cancelled: first(row, ["cancelled", "canceled", "is_cancelled"]),
-    liveProviderState: first(row, ["is_live", "live", "live_provider_state"]),
-  });
+  const homeTeam = String(row.home_team ?? row.homeTeam ?? row.team_a ?? "Home");
+  const awayTeam = String(row.away_team ?? row.awayTeam ?? row.team_b ?? "Away");
+  const startsAt = String(row.starts_at ?? row.start_time ?? row.match_start_time ?? new Date().toISOString());
+  const effectiveStartsAt = String(row.effective_starts_at ?? row.effective_start_time ?? startsAt);
+  const generatedTitle = [homeTeam, awayTeam].filter(Boolean).join(" vs ");
 
   return {
-    id: String(first(row, ["id", "match_id"]) ?? ""),
-    sport,
-    title,
-    shortTitle: title.length > 28 ? title.slice(0, 28) + "…" : title,
-    homeTeam: homeName || "Home",
-    awayTeam: awayName || "Away",
-    startsAt: asString(startsAt),
-    effectiveStartsAt: asString(effectiveStartsAt),
-    status: phase,
-    providerStatus: asString(providerStatus),
-    toss: asString(first(row, ["toss", "toss_result", "toss_winner"])),
-    lineupAnnounced: asBool(first(row, ["lineup_announced", "lineupAnnounced", "is_lineup_out"])),
-    deadlineAt: asString(first(row, ["deadline_at", "deadline", "entry_deadline", "dd"])),
-    metadata: row,
+    id: String(row.id),
+    sport: String(row.sport ?? "cricket"),
+    title: String(row.title ?? row.name ?? generatedTitle || "Match"),
+    shortTitle: row.short_title ? String(row.short_title) : undefined,
+    homeTeam,
+    awayTeam,
+    startsAt,
+    effectiveStartsAt,
+    status: row.status ? String(row.status) : undefined,
+    providerStatus: row.provider_status ? String(row.provider_status) : null,
+    toss: row.toss ? String(row.toss) : null,
+    lineupAnnounced: Boolean(row.lineup_announced),
+    deadlineAt: row.deadline_at ? String(row.deadline_at) : null,
+    metadata: row.metadata && typeof row.metadata === "object" ? row.metadata as Record<string, unknown> : {},
   };
 }
