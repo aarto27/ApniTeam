@@ -2,6 +2,7 @@ import { Stack } from "expo-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { theme } from "../lib/theme";
+import { usePushRegistration } from "../features/notifications/usePushRegistration";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -15,6 +16,8 @@ const queryClient = new QueryClient({
 });
 
 export default function RootLayout() {
+  usePushRegistration();
+
   return (
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
