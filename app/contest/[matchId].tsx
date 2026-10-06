@@ -17,7 +17,11 @@ export default function Contests() {
   const { data: teams = [] } = useMyTeams(id);
   const { data: entries = [] } = useContestEntries(id);
   const join = useContestJoin(id);
-  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(teams[0]?.id ?? null);
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!selectedTeamId && teams.length) setSelectedTeamId(teams[0].id);
+  }, [selectedTeamId, teams]);
 
   const entryByContest = useMemo(
     () => new Map(entries.map((entry) => [entry.contestId, entry])),
